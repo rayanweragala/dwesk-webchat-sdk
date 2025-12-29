@@ -1,11 +1,9 @@
 /**
  * Dwesk WebChat SDK
- * Browser client for Dwesk CRM integration.
  */
 
 class DweskWebChatSDK {
   constructor(config) {
-    // Basic setup: merge defaults for polling and debug mode
     this.config = {
       crmUrl: config.crmUrl,
       companyId: config.companyId,
@@ -28,7 +26,7 @@ class DweskWebChatSDK {
   }
 
   /**
-   * Dispatches text messages. Triggers polling automatically if not already active.
+   * Send text message
    */
   async sendMessage(message, metadata = {}) {
     try {
@@ -38,25 +36,26 @@ class DweskWebChatSDK {
         customerEmail: this.config.customerInfo.email,
         customerPhone: this.config.customerInfo.phone,
         message: message,
-        sessionId: this.sessionId,
+        sessionId: this.sessionId, 
         ipAddress: await this._getIPAddress(),
         userAgent: navigator.userAgent,
         metadata: JSON.stringify(metadata)
       };
 
-      const response = await this._makeRequest('/api/external/webchat/receive-message', payload);
+      const response = await this._makeRequest(
+        '/api/external/webchat/receive-message', 
+        payload
+      );
       
       if (response.status === 1) {
-        // Sync session/queue IDs from the server response
         this.sessionId = response.sessionId;
         this.queueId = response.queueId;
         
-        // Start looking for agent replies once the first message is out
         if (!this.polling) {
           this._startPolling();
         }
         
-        this._log('Message sent successfully', response);
+        this._log('Message sent, sessionId:', this.sessionId);
         return response;
       } else {
         throw new Error(response.message || 'Failed to send message');
@@ -68,8 +67,7 @@ class DweskWebChatSDK {
   }
 
   /**
-   * Uploads file as base64. 
-   * Note: Large files may hit payload limits depending on CRM config.
+   * Send file with optional text message
    */
   async sendFile(file, message = '') {
     try {
@@ -89,7 +87,10 @@ class DweskWebChatSDK {
         userAgent: navigator.userAgent
       };
 
-      const response = await this._makeRequest('/api/external/webchat/receive-message', payload);
+      const response = await this._makeRequest(
+        '/api/external/webchat/receive-message', 
+        payload
+      );
       
       if (response.status === 1) {
         this.sessionId = response.sessionId;
@@ -99,7 +100,7 @@ class DweskWebChatSDK {
           this._startPolling();
         }
         
-        this._log('File sent successfully', response);
+        this._log('File sent, sessionId:', this.sessionId);
         return response;
       } else {
         throw new Error(response.message || 'Failed to send file');
@@ -111,7 +112,7 @@ class DweskWebChatSDK {
   }
 
   /**
-   * Subscriber for incoming agent messages.
+   * Subscribe to incoming agent replies
    */
   onReply(callback) {
     if (typeof callback === 'function') {
@@ -121,7 +122,7 @@ class DweskWebChatSDK {
   }
 
   /**
-   * Subscriber for SDK/Network errors.
+   * Subscribe to errors
    */
   onError(callback) {
     if (typeof callback === 'function') {
@@ -130,16 +131,22 @@ class DweskWebChatSDK {
     }
   }
 
+  /**
+   * Get current session ID
+   */
   getSessionId() {
     return this.sessionId;
   }
 
+  /**
+   * Get current queue ID
+   */
   getQueueId() {
     return this.queueId;
   }
 
   /**
-   * Cleanup: kills polling and clears timers.
+   * Stop polling and cleanup
    */
   disconnect() {
     this._stopPolling();
@@ -147,16 +154,17 @@ class DweskWebChatSDK {
   }
 
   /**
-   * Manual fetch for new messages. 
-   * Useful if the developer wants to bypass the internal poll loop.
+   * Manual check for new messages
    */
   async checkForReplies() {
     if (!this.sessionId || !this.config.webhookUrl) {
+      this._log('Cannot poll: missing sessionId or webhookUrl');
       return;
     }
 
     try {
       const pollUrl = `${this.config.webhookUrl}/messages/${this.sessionId}`;
+      
       const response = await fetch(pollUrl, {
         method: 'GET',
         headers: {
@@ -168,23 +176,59 @@ class DweskWebChatSDK {
         const data = await response.json();
         
         if (data.messages && data.messages.length > 0) {
+          this._log(`Received ${data.messages.length} new messages`);
+          
           data.messages.forEach(msg => {
+            if (msg.attachment) {
+              msg.attachmentUrl = this._base64ToBlob(
+                msg.attachment.base64,
+                msg.attachment.type
+              );
+              msg.attachmentName = msg.attachment.name;
+            }
+            
             this._triggerReplyCallbacks(msg);
           });
         }
+      } else {
+        this._log('Poll returned non-OK status:', response.status);
       }
     } catch (error) {
-      // Don't bubble up poll errors to the main UI to avoid spamming the user
       if (this.config.debug) {
         console.error('Poll error:', error);
       }
     }
   }
 
-  // Private: Handles Basic Auth and JSON posting
+  /**
+   * Convert base64 to Blob URL for display
+   */
+  _base64ToBlob(base64, mimeType) {
+    try {
+      const byteCharacters = atob(base64);
+      const byteArrays = [];
+
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteArrays.push(byteCharacters.charCodeAt(i));
+      }
+
+      const byteArray = new Uint8Array(byteArrays);
+      const blob = new Blob([byteArray], { type: mimeType });
+      return URL.createObjectURL(blob);
+    } catch (error) {
+      this._log('Error converting base64 to blob:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Make authenticated request to CRM
+   */
   async _makeRequest(endpoint, data) {
     const url = `${this.config.crmUrl}${endpoint}`;
-    const authHeader = 'Basic ' + btoa(`${this.config.username}:${this.config.password}`);
+    const authHeader = 'Basic ' + btoa(
+      `${this.config.username}:${this.config.password}`
+    );
 
     const response = await fetch(url, {
       method: 'POST',
@@ -202,7 +246,9 @@ class DweskWebChatSDK {
     return await response.json();
   }
 
-  // Strip prefix from DataURL to get raw base64 string
+  /**
+   * Convert File to base64 string
+   */
   _fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -215,7 +261,9 @@ class DweskWebChatSDK {
     });
   }
 
-  // Helper to tag customer location/identity
+  /**
+   * Get customer IP address
+   */
   async _getIPAddress() {
     try {
       const response = await fetch('https://api.ipify.org?format=json');
@@ -226,14 +274,20 @@ class DweskWebChatSDK {
     }
   }
 
+  /**
+   * Start polling loop
+   */
   _startPolling() {
     if (this.polling) return;
     
     this.polling = true;
     this._poll();
-    this._log('Started polling for replies');
+    this._log('Started polling for sessionId:', this.sessionId);
   }
 
+  /**
+   * Stop polling loop
+   */
   _stopPolling() {
     this.polling = false;
     if (this.pollTimer) {
@@ -244,8 +298,7 @@ class DweskWebChatSDK {
   }
 
   /**
-   * Recursive poll loop using setTimeout instead of setInterval 
-   * to prevent overlapping requests on slow networks.
+   * Recursive poll with setTimeout
    */
   async _poll() {
     if (!this.polling) return;
@@ -253,12 +306,18 @@ class DweskWebChatSDK {
     await this.checkForReplies();
 
     if (this.polling) {
-      this.pollTimer = setTimeout(() => this._poll(), this.config.pollInterval);
+      this.pollTimer = setTimeout(
+        () => this._poll(), 
+        this.config.pollInterval
+      );
     }
   }
 
+  /**
+   * Trigger all registered reply callbacks
+   */
   _triggerReplyCallbacks(message) {
-    this._log('Received reply', message);
+    this._log('Received reply:', message);
     this.messageCallbacks.forEach(callback => {
       try {
         callback(message);
@@ -268,6 +327,9 @@ class DweskWebChatSDK {
     });
   }
 
+  /**
+   * Trigger all registered error callbacks
+   */
   _handleError(context, error) {
     this._log(`Error in ${context}:`, error);
     this.errorCallbacks.forEach(callback => {
@@ -286,7 +348,6 @@ class DweskWebChatSDK {
   }
 }
 
-// Export for both Node/Webpack and direct browser usage
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = DweskWebChatSDK;
 }

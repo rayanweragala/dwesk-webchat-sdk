@@ -78,7 +78,6 @@ declare module 'dwesk-webchat-sdk/webhook' {
   import { Request, Response, RequestHandler } from 'express';
 
   export interface WebhookOptions {
-    /** Memory limit for messages per session. Prevents memory leaks. */
     maxMessagesPerSession?: number;
     /** TTL for session data in ms. */
     messageExpiry?: number;

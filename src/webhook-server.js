@@ -1,49 +1,68 @@
 /**
  * Dwesk WebChat Webhook Server
- * In-memory buffer to bridge CRM webhooks and SDK polling.
+ * Routes agent replies to the correct customer session
  */
 
 class DweskWebhookServer {
   constructor(options = {}) {
-    // Stores messages keyed by sessionId: Map<string, Array>
     this.messages = new Map();
     
-    // Safety limits to prevent memory exhaustion
     this.maxMessagesPerSession = options.maxMessagesPerSession || 100;
-    this.messageExpiry = options.messageExpiry || 3600000; // Default: 1 hour
+    this.messageExpiry = options.messageExpiry || 3600000; // 1 hour
     this.debug = options.debug || false;
     
-    // Periodically prune stale sessions
     setInterval(() => this._cleanupOldMessages(), 60000);
     
     this._log('Webhook server initialized');
   }
 
   /**
-   * Endpoint for the Dwesk CRM to POST replies.
-   * Logic: Validates payload, assigns a local ID, and buffers the message.
+   * Endpoint for CRM to POST agent replies
    */
   receiveWebhook() {
     return (req, res) => {
       try {
-        const { sessionId, message, agentName, timestamp, attachmentUrl } = req.body;
+        const { 
+          sessionId, 
+          message, 
+          agentName, 
+          timestamp, 
+          attachmentBase64,
+          attachmentName,
+          attachmentType
+        } = req.body;
 
-        if (!sessionId || !message) {
+        if (!sessionId) {
           return res.status(400).json({ 
-            error: 'Missing required fields: sessionId, message' 
+            error: 'Missing required field: sessionId',
+            details: 'SessionId is required to route the message to the correct customer'
+          });
+        }
+
+        if (!message && !attachmentBase64) {
+          return res.status(400).json({ 
+            error: 'Missing message content',
+            details: 'Either message text or attachment must be provided'
           });
         }
 
         const messageData = {
-          id: Date.now() + Math.random(), // Basic unique ID for client-side tracking
+          id: Date.now() + Math.random(),
           sessionId,
-          message,
+          message: message || '',
           agentName: agentName || 'Agent',
           timestamp: timestamp || new Date().toISOString(),
-          attachmentUrl: attachmentUrl || null,
           read: false,
           receivedAt: Date.now()
         };
+
+        if (attachmentBase64) {
+          messageData.attachment = {
+            base64: attachmentBase64,
+            name: attachmentName || 'file',
+            type: attachmentType || 'application/octet-stream'
+          };
+        }
 
         if (!this.messages.has(sessionId)) {
           this.messages.set(sessionId, []);
@@ -52,29 +71,32 @@ class DweskWebhookServer {
         const sessionMessages = this.messages.get(sessionId);
         sessionMessages.push(messageData);
 
-        // Cap the buffer size per session to avoid runaway memory usage
         if (sessionMessages.length > this.maxMessagesPerSession) {
-          sessionMessages.shift(); 
+          sessionMessages.shift();
         }
 
-        this._log('Webhook received', messageData);
+        this._log('Webhook received for session:', sessionId, messageData);
 
         res.json({ 
           success: true, 
           messageId: messageData.id,
-          message: 'Reply received and queued for delivery'
+          sessionId: sessionId,
+          message: 'Reply queued for delivery to customer'
         });
 
       } catch (error) {
         console.error('Webhook error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ 
+          error: 'Internal server error',
+          details: error.message 
+        });
       }
     };
   }
 
   /**
-   * Endpoint for the SDK to GET new messages.
-   * Logic: Returns unread messages and marks them as read immediately.
+   * Endpoint for SDK to poll new messages
+   * Returns unread messages for specific sessionId
    */
   pollMessages() {
     return (req, res) => {
@@ -82,40 +104,52 @@ class DweskWebhookServer {
         const { sessionId } = req.params;
 
         if (!sessionId) {
-          return res.status(400).json({ error: 'Session ID required' });
+          return res.status(400).json({ 
+            error: 'Session ID required in URL path' 
+          });
         }
 
         const messages = this.messages.get(sessionId) || [];
         const unreadMessages = messages.filter(msg => !msg.read);
 
-        // Atomic-like read update: mark messages so they aren't sent in the next poll
         unreadMessages.forEach(msg => msg.read = true);
 
-        this._log(`Poll request for session ${sessionId}, ${unreadMessages.length} new messages`);
+        this._log(`Poll for session ${sessionId}: ${unreadMessages.length} new messages`);
 
         res.json({ 
           sessionId,
           messages: unreadMessages,
-          totalMessages: messages.length
+          totalMessages: messages.length,
+          hasMore: false
         });
 
       } catch (error) {
         console.error('Poll error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ 
+          error: 'Internal server error',
+          details: error.message 
+        });
       }
     };
   }
 
   /**
-   * Returns full history for a session. Useful for debugging or 
-   * re-hydrating chat UI on page refresh.
+   * Get full message history for a session
    */
   getAllMessages(sessionId) {
     return this.messages.get(sessionId) || [];
   }
 
   /**
-   * Force removal of a session from memory.
+   * Get unread count for a session
+   */
+  getUnreadCount(sessionId) {
+    const messages = this.messages.get(sessionId) || [];
+    return messages.filter(msg => !msg.read).length;
+  }
+
+  /**
+   * Clear a specific session
    */
   clearSession(sessionId) {
     this.messages.delete(sessionId);
@@ -123,25 +157,35 @@ class DweskWebhookServer {
   }
 
   /**
-   * Returns health/usage metrics of the buffer.
+   * Get server statistics
    */
   getStats() {
     const stats = {
       totalSessions: this.messages.size,
       totalMessages: 0,
-      unreadMessages: 0
+      unreadMessages: 0,
+      sessionDetails: []
     };
 
-    this.messages.forEach(msgs => {
+    this.messages.forEach((msgs, sessionId) => {
+      const unread = msgs.filter(m => !m.read).length;
       stats.totalMessages += msgs.length;
-      stats.unreadMessages += msgs.filter(m => !m.read).length;
+      stats.unreadMessages += unread;
+      
+      if (this.debug) {
+        stats.sessionDetails.push({
+          sessionId,
+          total: msgs.length,
+          unread
+        });
+      }
     });
 
     return stats;
   }
 
   /**
-   * Loops through Map to drop sessions that haven't seen activity within messageExpiry.
+   * Cleanup expired sessions
    */
   _cleanupOldMessages() {
     const now = Date.now();
@@ -153,23 +197,21 @@ class DweskWebhookServer {
       );
 
       if (validMessages.length === 0) {
-        // Drop the whole session if no messages are fresh
         this.messages.delete(sessionId);
         cleaned++;
       } else if (validMessages.length < msgs.length) {
-        // Only keep the fresh ones
         this.messages.set(sessionId, validMessages);
       }
     });
 
-    if (cleaned > 0 && this.debug) {
+    if (cleaned > 0) {
       this._log(`Cleaned up ${cleaned} expired sessions`);
     }
   }
 
   _log(...args) {
     if (this.debug) {
-      console.log('[DweskWebhook]', ...args);
+      console.log('[DweskWebhook]', new Date().toISOString(), ...args);
     }
   }
 }
