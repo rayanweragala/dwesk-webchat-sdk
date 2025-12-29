@@ -3,7 +3,7 @@ const cors = require('cors');
 const DweskWebhookServer = require('../../dist/webhook-server');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 const webhookServer = new DweskWebhookServer({
   maxMessagesPerSession: 100,

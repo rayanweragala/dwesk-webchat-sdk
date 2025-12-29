@@ -1,92 +1,119 @@
-import React from 'react';
-import ChatWidget from './ChatWidget';
+import React from "react";
+import ChatWidget from "./ChatWidget";
 
 function App() {
   const chatConfig = {
-    crmUrl: 'https://your-crm.com',
-    companyId: 123,
-    username: 'your-api-username',
-    password: 'your-api-password',
-    webhookUrl: 'https://yoursite.com/api/webhook/chat',
+    crmUrl: "http://localhost:8080/dwesk",
+    
+    companyId: 2,
+    
+    username: "rayan@gmail.com",
+    password: "BoOETZ1d",
+    
+    webhookUrl: "http://localhost:3000/api/webhook/chat",
+    
     customerInfo: {
-      name: 'John Smith',
-      email: 'john.smith@example.com',
-      phone: '+1234567890'
+      name: "Rayan",
+      email: "rayan1@gmail.com",
+      phone: "781100996",
     },
+    
     pollInterval: 3000,
-    debug: true
+    debug: true,
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.content}>
         <header style={styles.header}>
-          <h1 style={styles.title}>Sample Company Website</h1>
-          <nav style={styles.nav}>
-            <a href="#home" style={styles.navLink}>Home</a>
-            <a href="#products" style={styles.navLink}>Products</a>
-            <a href="#about" style={styles.navLink}>About</a>
-            <a href="#contact" style={styles.navLink}>Contact</a>
-          </nav>
+          <h1 style={styles.title}>Dwesk Chat Integration</h1>
         </header>
 
         <main style={styles.main}>
-          <section style={styles.hero}>
-            <h2 style={styles.heroTitle}>Welcome to Our Service</h2>
-            <p style={styles.heroText}>
-              This is a sample page demonstrating the Dwesk WebChat SDK integration.
-              The chat widget appears in the bottom right corner of the screen.
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Current Configuration</h2>
+            <div style={styles.configGrid}>
+              <div style={styles.configRow}>
+                <span style={styles.label}>CRM URL:</span>
+                <code style={styles.value}>{chatConfig.crmUrl}</code>
+              </div>
+              <div style={styles.configRow}>
+                <span style={styles.label}>Company ID:</span>
+                <code style={styles.value}>{chatConfig.companyId}</code>
+              </div>
+              <div style={styles.configRow}>
+                <span style={styles.label}>Webhook:</span>
+                <code style={styles.value}>{chatConfig.webhookUrl}</code>
+              </div>
+              <div style={styles.configRow}>
+                <span style={styles.label}>Debug:</span>
+                <code style={styles.value}>{chatConfig.debug ? 'true' : 'false'}</code>
+              </div>
+            </div>
+            <p style={styles.note}>
+              Check browser console for API requests and responses
             </p>
-            <button style={styles.ctaButton}>Get Started</button>
           </section>
 
-          <section style={styles.features}>
-            <div style={styles.feature}>
-              <h3 style={styles.featureTitle}>Real-time Support</h3>
-              <p style={styles.featureText}>
-                Connect with our support team instantly through the chat widget.
-              </p>
-            </div>
-            <div style={styles.feature}>
-              <h3 style={styles.featureTitle}>Easy Integration</h3>
-              <p style={styles.featureText}>
-                Simple setup process with minimal configuration required.
-              </p>
-            </div>
-            <div style={styles.feature}>
-              <h3 style={styles.featureTitle}>Secure Communication</h3>
-              <p style={styles.featureText}>
-                All messages are encrypted and securely transmitted to our CRM.
-              </p>
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Message Flow</h2>
+            <div style={styles.flow}>
+              <div style={styles.flowItem}>
+                <strong>1. Send Message</strong>
+                <code style={styles.code}>
+                  POST {chatConfig.crmUrl}/api/external/webchat/receive-message
+                </code>
+              </div>
+              <div style={styles.flowItem}>
+                <strong>2. Backend Receives</strong>
+                <code style={styles.code}>
+                  @PostMapping("/external/webchat/receive-message")
+                </code>
+              </div>
+              <div style={styles.flowItem}>
+                <strong>3. Poll for Replies</strong>
+                <code style={styles.code}>
+                  GET {chatConfig.webhookUrl}/messages/[sessionId]
+                </code>
+              </div>
             </div>
           </section>
 
-          <section style={styles.info}>
-            <h2 style={styles.infoTitle}>Integration Instructions</h2>
-            <div style={styles.codeBlock}>
-              <pre style={styles.code}>{`import ChatWidget from './ChatWidget';
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Request Payload</h2>
+            <pre style={styles.pre}>{`{
+  "companyId": ${chatConfig.companyId},
+  "customerName": "${chatConfig.customerInfo.name}",
+  "customerEmail": "${chatConfig.customerInfo.email}",
+  "customerPhone": "${chatConfig.customerInfo.phone}",
+  "message": "User message text",
+  "sessionId": null,
+  "ipAddress": "auto-detected",
+  "userAgent": "auto-detected",
+  "metadata": "{}"
+}`}</pre>
+          </section>
 
-const config = {
-  crmUrl: 'https://your-crm.com',
-  companyId: 123,
-  username: 'api-user',
-  password: 'api-pass',
-  webhookUrl: 'https://yoursite.com/webhook'
-};
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Expected Response</h2>
+            <pre style={styles.pre}>{`{
+  "status": 1,
+  "message": "Message received successfully",
+  "queueId": 12345,
+  "sessionId": "abc-123-xyz"
+}`}</pre>
+          </section>
 
-<ChatWidget config={config} />`}</pre>
-            </div>
-            <p style={styles.infoText}>
-              Update the configuration values with your actual CRM credentials
-              and webhook URL. The chat widget will appear in the bottom right
-              corner of your page.
-            </p>
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Setup Requirements</h2>
+            <ul style={styles.list}>
+              <li>Spring Boot backend running on configured port</li>
+              <li>CORS enabled for frontend origin</li>
+              <li>Basic Auth credentials configured</li>
+              <li>Webhook server running for reply polling</li>
+            </ul>
           </section>
         </main>
-
-        <footer style={styles.footer}>
-          <p>&copy; 2024 Sample Company. All rights reserved.</p>
-        </footer>
       </div>
 
       <ChatWidget config={chatConfig} />
@@ -96,124 +123,108 @@ const config = {
 
 const styles = {
   container: {
-    minHeight: '100vh',
-    backgroundColor: '#ffffff'
+    minHeight: "100vh",
+    backgroundColor: "#f5f5f5",
   },
   content: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '0 20px'
+    maxWidth: "1000px",
+    margin: "0 auto",
+    padding: "20px",
   },
   header: {
-    padding: '20px 0',
-    borderBottom: '1px solid #e5e7eb',
-    marginBottom: '40px'
+    padding: "20px 0",
+    borderBottom: "1px solid #ddd",
+    marginBottom: "30px",
   },
   title: {
-    fontSize: '24px',
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: '16px'
-  },
-  nav: {
-    display: 'flex',
-    gap: '24px'
-  },
-  navLink: {
-    color: '#6b7280',
-    textDecoration: 'none',
-    fontSize: '15px',
-    transition: 'color 0.2s'
+    fontSize: "24px",
+    fontWeight: "600",
+    color: "#222",
+    margin: 0,
   },
   main: {
-    paddingBottom: '60px'
+    paddingBottom: "60px",
   },
-  hero: {
-    textAlign: 'center',
-    padding: '60px 0',
-    marginBottom: '60px'
+  section: {
+    backgroundColor: "white",
+    borderRadius: "4px",
+    padding: "24px",
+    marginBottom: "20px",
+    border: "1px solid #ddd",
   },
-  heroTitle: {
-    fontSize: '42px',
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: '20px'
+  sectionTitle: {
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#222",
+    marginTop: 0,
+    marginBottom: "16px",
   },
-  heroText: {
-    fontSize: '18px',
-    color: '#6b7280',
-    maxWidth: '600px',
-    margin: '0 auto 32px',
-    lineHeight: '1.6'
+  configGrid: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
   },
-  ctaButton: {
-    backgroundColor: '#2563eb',
-    color: 'white',
-    border: 'none',
-    padding: '14px 32px',
-    fontSize: '16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '600',
-    transition: 'background-color 0.2s'
+  configRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
   },
-  features: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '32px',
-    marginBottom: '60px'
+  label: {
+    fontSize: "14px",
+    color: "#666",
+    minWidth: "120px",
   },
-  feature: {
-    padding: '24px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb'
+  value: {
+    fontSize: "13px",
+    fontFamily: "monospace",
+    backgroundColor: "#f5f5f5",
+    padding: "4px 8px",
+    borderRadius: "3px",
+    color: "#333",
   },
-  featureTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: '12px'
+  note: {
+    fontSize: "13px",
+    color: "#666",
+    marginTop: "16px",
+    marginBottom: 0,
   },
-  featureText: {
-    fontSize: '15px',
-    color: '#6b7280',
-    lineHeight: '1.6'
+  flow: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
   },
-  info: {
-    marginBottom: '60px'
-  },
-  infoTitle: {
-    fontSize: '28px',
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: '24px'
-  },
-  codeBlock: {
-    backgroundColor: '#1f2937',
-    borderRadius: '8px',
-    padding: '20px',
-    marginBottom: '20px',
-    overflow: 'auto'
+  flowItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
   },
   code: {
-    color: '#f3f4f6',
-    fontSize: '14px',
-    fontFamily: 'monospace',
-    margin: 0
+    fontSize: "12px",
+    fontFamily: "monospace",
+    backgroundColor: "#f5f5f5",
+    padding: "8px 12px",
+    borderRadius: "3px",
+    color: "#333",
+    display: "block",
+    overflowX: "auto",
   },
-  infoText: {
-    fontSize: '15px',
-    color: '#6b7280',
-    lineHeight: '1.6'
+  pre: {
+    fontSize: "12px",
+    fontFamily: "monospace",
+    backgroundColor: "#282c34",
+    color: "#abb2bf",
+    padding: "16px",
+    borderRadius: "4px",
+    overflowX: "auto",
+    margin: 0,
   },
-  footer: {
-    borderTop: '1px solid #e5e7eb',
-    padding: '24px 0',
-    textAlign: 'center',
-    color: '#6b7280',
-    fontSize: '14px'
-  }
+  list: {
+    fontSize: "14px",
+    color: "#444",
+    lineHeight: "1.8",
+    margin: 0,
+    paddingLeft: "20px",
+  },
 };
 
 export default App;

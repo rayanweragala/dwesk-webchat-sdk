@@ -109,5 +109,5 @@ declare module 'dwesk-webchat-sdk/webhook' {
     getStats(): WebhookStats;
   }
 
-  export default DweskWebhookServer;
+  
 }
