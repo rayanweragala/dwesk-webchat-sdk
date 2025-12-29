@@ -1,0 +1,56 @@
+{
+  "name": "dwesk-webchat-sdk",
+  "version": "1.0.1",
+  "description": "Official SDK for integrating web applications with Dwesk CRM chat system",
+  "main": "dist/dwesk-webchat.js",
+  "module": "dist/dwesk-webchat.esm.js",
+  "browser": "dist/dwesk-webchat.min.js",
+  "types": "src/types.d.ts",
+  "files": [
+    "dist/",
+    "src/types.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "dwesk",
+    "crm",
+    "chat",
+    "webchat",
+    "customer-support",
+    "live-chat",
+    "messaging"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rayanweragala/dwesk-webchat-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rayanweragala/dwesk-webchat-sdk/issues"
+  },
+  "homepage": "https://github.com/rayanweragala/dwesk-webchat-sdk#readme",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.9.6"
+  },
+  "peerDependencies": {
+    "express": "^4.18.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "cors": "^2.8.5"
+  }
+}
