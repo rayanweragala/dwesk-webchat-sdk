@@ -1,26 +1,13 @@
 import React from "react";
 import ChatWidget from "./ChatWidget";
 
-function App() {
-  const chatConfig = {
-    crmUrl: "http://localhost:8080/dwesk",
-    
-    companyId: 2,
-    
-    username: "rayan@gmail.com",
-    password: "BoOETZ1d",
-    
-    webhookUrl: "http://localhost:3000/api/webhook/chat",
-    
-    customerInfo: {
-      name: "Rayan",
-      email: "rayan1@gmail.com",
-      phone: "781100996",
-    },
-    
-    pollInterval: 3000,
-    debug: true,
-  };
+const chatConfig = {
+  crmUrl: import.meta.env.VITE_CRM_URL,
+  companyId: Number(import.meta.env.VITE_COMPANY_ID),
+  username: import.meta.env.VITE_DWESK_USERNAME,
+  password: import.meta.env.VITE_DWESK_PASSWORD,
+  webhookUrl: "http://localhost:3000/api/webhook/chat",
+};
 
   return (
     <div style={styles.container}>

@@ -28,3 +28,7 @@ examples/**/.vite/
 examples/**/package-lock.json
 examples/**/yarn.lock
 examples/**/pnpm-lock.yaml
+
+#local secrets
+.env
+!.env.example
