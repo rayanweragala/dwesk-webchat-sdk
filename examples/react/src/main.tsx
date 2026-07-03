@@ -75,12 +75,29 @@ function loadConfig(): DemoConfig {
 
 function toClientConfig(config: DemoConfig, onDebugEvent: (e: WebChatDebugEvent) => void): DweskWebChatConfig {
   const webhookUrl = replyWebhookUrl(config);
+
+  // Custom proxy fetcher to automatically bypass CORS during local QA testing
+  const customFetch = async (url: string, init?: RequestInit) => {
+    if (url.includes("/api/external/webchat")) {
+      const bridgeBase = config.webhookUrl.trim().replace(/\/+$/, "").replace(/\/api\/webhook\/chat$/, "");
+      const proxyUrl = `${bridgeBase}/api/proxy`;
+      const headers = new Headers(init?.headers);
+      headers.set("x-target-url", url);
+      return fetch(proxyUrl, {
+        ...init,
+        headers
+      });
+    }
+    return fetch(url, init);
+  };
+
   const cfg: DweskWebChatConfig = {
     crmUrl: config.crmUrl,
     companyId: Number(config.companyId),
     webhookUrl,
     customer: { name: config.customerName, email: config.customerEmail, phone: config.customerPhone },
     onDebugEvent,
+    fetch: customFetch
   };
   if (config.username) cfg.username = config.username;
   if (config.password) cfg.password = config.password;

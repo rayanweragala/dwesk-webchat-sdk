@@ -359,6 +359,51 @@ async function tunnelFetch(request: Request): Promise<Response | null> {
     }
   }
 
+  if (request.method === "OPTIONS" && url.pathname === "/api/proxy") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "POST,OPTIONS"
+      }
+    });
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/proxy") {
+    const targetUrl = request.headers.get("x-target-url");
+    if (!targetUrl) {
+      return new Response("Missing x-target-url header", { status: 400 });
+    }
+    try {
+      const headers = new Headers(request.headers);
+      headers.delete("host");
+      headers.delete("x-target-url");
+      // Prevent Squid proxy from intercepting proxy requests to the target CRM
+      delete process.env.HTTP_PROXY;
+      delete process.env.http_proxy;
+
+      const bodyText = await request.text();
+      const response = await fetch(targetUrl, {
+        method: "POST",
+        headers,
+        body: bodyText
+      });
+      const responseBody = await response.text();
+
+      return new Response(responseBody, {
+        status: response.status,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "*",
+          "Content-Type": response.headers.get("Content-Type") || "application/json"
+        }
+      });
+    } catch (err) {
+      return Response.json({ error: String(err) }, { status: 502, headers: { "Access-Control-Allow-Origin": "*" } });
+    }
+  }
+
   return null;
 }
 
