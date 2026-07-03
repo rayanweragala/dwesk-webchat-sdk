@@ -1,56 +1,44 @@
 {
   "name": "dwesk-webchat-sdk",
-  "version": "1.0.1",
-  "description": "Official SDK for integrating web applications with Dwesk CRM chat system",
-  "main": "dist/dwesk-webchat.js",
-  "module": "dist/dwesk-webchat.esm.js",
-  "browser": "dist/dwesk-webchat.min.js",
-  "types": "src/types.d.ts",
+  "version": "2.0.0",
+  "description": "Bun-first TypeScript SDK for Dwesk web chat integrations",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./webhook": {
+      "types": "./src/webhook.ts",
+      "import": "./src/webhook.ts"
+    }
+  },
   "files": [
-    "dist/",
-    "src/types.d.ts",
-    "README.md",
-    "LICENSE"
+    "src",
+    "README.md"
   ],
   "scripts": {
-    "build": "rollup -c",
-    "watch": "rollup -c -w",
-    "prepublishOnly": "npm run build"
+    "build": "bun build ./src/index.ts ./src/webhook.ts --outdir ./dist --target browser",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "dwesk",
-    "crm",
-    "chat",
     "webchat",
-    "customer-support",
-    "live-chat",
-    "messaging"
+    "bun",
+    "typescript",
+    "sdk"
   ],
   "author": "Rayan Weragala <rayanthilakshana2000@gmail.com>",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/rayanweragala/dwesk-webchat-sdk.git"
-  },
-  "bugs": {
-    "url": "https://github.com/rayanweragala/dwesk-webchat-sdk/issues"
-  },
-  "homepage": "https://github.com/rayanweragala/dwesk-webchat-sdk#readme",
-  "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.7",
-    "@rollup/plugin-node-resolve": "^15.2.3",
-    "@rollup/plugin-terser": "^0.4.4",
-    "rollup": "^4.9.6"
-  },
-  "peerDependencies": {
-    "express": "^4.18.0"
-  },
-  "peerDependenciesMeta": {
-    "express": {
-      "optional": true
-    }
-  },
   "dependencies": {
-    "cors": "^2.8.5"
+    "ngrok": "^5.0.0-beta.2"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "typescript": "^5.7.2"
   }
 }

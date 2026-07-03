@@ -2,18 +2,21 @@
   "name": "dwesk-webchat-react-example",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bunx vite --host 127.0.0.1",
+    "build": "bunx vite build",
+    "preview": "bunx vite preview --host 127.0.0.1"
+  },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "dwesk-webchat-sdk": "^1.0.0"
+    "@vitejs/plugin-react": "^4.3.4",
+    "lucide-react": "^0.468.0",
+    "vite": "^6.0.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.0.0"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5"
   }
 }
