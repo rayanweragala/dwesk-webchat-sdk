@@ -484,49 +484,170 @@ function App() {
 
       {/* ── DEBUG PANEL ── */}
       {showDebug && (
-        <aside className="debug-aside">
-          <div className="debug-hd">
-            <div className="debug-hd-title"><Activity size={14} />Debug Events</div>
-            <div className="debug-hd-actions">
-              <button className="debug-btn" onClick={() => navigator.clipboard.writeText(JSON.stringify(logs, null, 2))} title="Copy all">
-                <Copy size={13} />
-              </button>
-              <button className="debug-btn" onClick={() => setLogs([])} title="Clear">
-                <Trash2 size={13} />
-              </button>
-              <button className="debug-btn" onClick={() => setShowDebug(false)} title="Close">
-                <X size={13} />
-              </button>
-            </div>
-          </div>
-          <div className="debug-list">
-            {logs.length === 0 ? (
-              <div className="debug-empty">
-                <Zap size={20} />
-                <span>No events yet</span>
-              </div>
-            ) : logs.map(log => (
-              <LogCard key={log.id} log={log} />
-            ))}
-          </div>
-        </aside>
+        <DebugDrawer
+          logs={logs}
+          onClear={() => setLogs([])}
+          onClose={() => setShowDebug(false)}
+        />
       )}
     </div>
   );
 }
 
-function LogCard({ log }: { log: LogEntry }) {
-  const [open, setOpen] = useState(false);
+function DebugDrawer({
+  logs,
+  onClear,
+  onClose,
+}: {
+  logs: LogEntry[];
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const [filter, setFilter] = useState<"all" | "request" | "response" | "error" | "sse">("all");
+  const [search, setSearch] = useState("");
+  const [expandAll, setExpandAll] = useState(false);
+  const [copiedAll, setCopiedAll] = useState(false);
+
+  const filtered = logs.filter((log) => {
+    // Tab filter
+    if (filter === "request" && log.type !== "request") return false;
+    if (filter === "response" && log.type !== "response") return false;
+    if (filter === "error" && log.type !== "error") return false;
+    if (filter === "sse" && !log.type.startsWith("sse-")) return false;
+
+    // Search query filter
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return (
+        log.type.toLowerCase().includes(q) ||
+        (log.message && log.message.toLowerCase().includes(q)) ||
+        JSON.stringify(log).toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
+  const copyAll = () => {
+    navigator.clipboard.writeText(JSON.stringify(filtered, null, 2)).then(() => {
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+    });
+  };
+
   return (
-    <div className="log-card">
-      <div className="log-card-hd" onClick={() => setOpen(v => !v)}>
-        <span className="log-type">{log.type}</span>
-        <div className="log-card-hd-right">
-          <time className="log-time">{new Date(log.timestamp).toLocaleTimeString()}</time>
-          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+    <aside className="debug-aside">
+      {/* Title / Action bar */}
+      <div className="debug-hd">
+        <div className="debug-hd-title">
+          <Activity size={15} />
+          <span>Debug Console</span>
+          <span className="debug-count">{filtered.length}</span>
+        </div>
+        <div className="debug-hd-actions">
+          <button
+            className={`debug-btn ${expandAll ? "active" : ""}`}
+            onClick={() => setExpandAll((v) => !v)}
+            title={expandAll ? "Collapse all" : "Expand all"}
+          >
+            <ChevronDown size={14} style={{ transform: expandAll ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+          </button>
+          <button className="debug-btn" onClick={copyAll} title="Copy filtered logs">
+            {copiedAll ? <Check size={13} /> : <Copy size={13} />}
+          </button>
+          <button className="debug-btn" onClick={onClear} title="Clear logs">
+            <Trash2 size={13} />
+          </button>
+          <button className="debug-btn" onClick={onClose} title="Close Panel">
+            <X size={13} />
+          </button>
         </div>
       </div>
-      {open && <pre className="log-pre">{JSON.stringify(log, null, 2)}</pre>}
+
+      {/* Search and Tabs */}
+      <div className="debug-controls">
+        <input
+          type="text"
+          className="debug-search"
+          placeholder="Filter logs by keyword…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="debug-tabs">
+          <button className={`debug-tab ${filter === "all" ? "active" : ""}`} onClick={() => setFilter("all")}>All</button>
+          <button className={`debug-tab ${filter === "request" ? "active" : ""}`} onClick={() => setFilter("request")}>Reqs</button>
+          <button className={`debug-tab ${filter === "response" ? "active" : ""}`} onClick={() => setFilter("response")}>Resps</button>
+          <button className={`debug-tab ${filter === "sse" ? "active" : ""}`} onClick={() => setFilter("sse")}>SSE</button>
+          <button className={`debug-tab ${filter === "error" ? "active" : ""}`} onClick={() => setFilter("error")}>Errors</button>
+        </div>
+      </div>
+
+      {/* Log list */}
+      <div className="debug-list">
+        {filtered.length === 0 ? (
+          <div className="debug-empty">
+            <Zap size={22} />
+            <span>No events match this criteria</span>
+          </div>
+        ) : (
+          filtered.map((log) => (
+            <LogCard key={log.id} log={log} forceOpen={expandAll} />
+          ))
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function LogCard({ log, forceOpen }: { log: LogEntry; forceOpen: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setOpen(forceOpen);
+  }, [forceOpen]);
+
+  const copyItem = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(JSON.stringify(log, null, 2)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  // Determine indicator color based on log type
+  let typeClass = "sse";
+  if (log.type === "request") typeClass = "req";
+  else if (log.type === "response") typeClass = "resp";
+  else if (log.type === "error") typeClass = "err";
+
+  return (
+    <div className={`log-card ${typeClass}`}>
+      <div className="log-card-hd" onClick={() => setOpen((v) => !v)}>
+        <div className="log-card-hd-left">
+          <span className={`log-dot ${typeClass}`} />
+          <span className="log-type">{log.type}</span>
+          {log.context && <span className="log-context">{log.context}</span>}
+        </div>
+        <div className="log-card-hd-right">
+          <time className="log-time">
+            {new Date(log.timestamp).toLocaleTimeString([], {
+              hour12: false,
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
+          </time>
+          <button className="log-card-copy-btn" onClick={copyItem} title="Copy event JSON">
+            {copied ? <Check size={11} /> : <Copy size={11} />}
+          </button>
+          {open ? <ChevronDown size={13} style={{ transform: "rotate(180deg)", transition: "transform 0.15s" }} /> : <ChevronDown size={13} />}
+        </div>
+      </div>
+      {open && (
+        <div className="log-body">
+          <pre className="log-pre">{JSON.stringify(log, null, 2)}</pre>
+        </div>
+      )}
     </div>
   );
 }
