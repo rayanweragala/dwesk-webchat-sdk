@@ -1,6 +1,28 @@
-import * as ngrok from "ngrok";
+// Strip proxy environment variables to prevent local API requests from being routed through Squid
+delete process.env.HTTP_PROXY;
+delete process.env.http_proxy;
+delete process.env.HTTPS_PROXY;
+delete process.env.https_proxy;
+delete process.env.ALL_PROXY;
+delete process.env.all_proxy;
+process.env.NO_PROXY = "127.0.0.1,localhost";
+process.env.no_proxy = "127.0.0.1,localhost";
+
 import fs from "node:fs";
+import { exec } from "node:child_process";
 import { createWebhookServer } from "../../src/webhook";
+
+// Force kill any stale ngrok processes running on the machine to avoid EADDRINUSE / already exists conflicts
+try {
+  if (process.platform === "win32") {
+    exec("taskkill /f /im ngrok.exe 2>nul");
+  } else {
+    exec("pkill -f ngrok 2>/dev/null");
+  }
+} catch (e) {}
+
+// Dynamically import ngrok so hoisting does not execute it before the proxy environment variables are stripped
+const ngrok = await import("ngrok");
 
 const DEMO_ENV_PATH = new URL("../react/.env", import.meta.url);
 const port = Number(Bun.env.PORT ?? 3000);
