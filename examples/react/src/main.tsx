@@ -286,7 +286,8 @@ function App() {
       };
       setMessages(prev => [...prev, next]);
     });
-    client.onError(({ error }) => {
+    client.onError(({ context, error }) => {
+      if (context === "events") return;
       setMessages(prev => [...prev, { id: crypto.randomUUID(), from: "system", text: error.message, time: "now" }]);
     });
     chatRef.current = client;
