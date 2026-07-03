@@ -90,4 +90,37 @@ describe("DweskWebChatClient", () => {
 
     expect(replies).toEqual(["Reply"]);
   });
+
+  test("reports SSE connection errors once per stream", async () => {
+    class FakeEventSource {
+      static instances: FakeEventSource[] = [];
+      readonly listeners = new Map<string, (event: MessageEvent) => void>();
+      constructor(readonly url: string) {
+        FakeEventSource.instances.push(this);
+      }
+      addEventListener(type: string, listener: EventListener) {
+        this.listeners.set(type, listener as (event: MessageEvent) => void);
+      }
+      close() {}
+      emitError() {
+        this.listeners.get("error")?.({} as MessageEvent);
+      }
+    }
+
+    const client = new DweskWebChatClient({
+      crmUrl: "https://crm.example.com",
+      webhookUrl: "https://bridge.example.com/api/webhook/chat",
+      companyId: 1,
+      eventSource: FakeEventSource as unknown as typeof EventSource,
+      fetch: (async () => Response.json({ status: 1, message: "ok", queueId: 1, sessionId: "abc" })) as unknown as typeof fetch
+    });
+    const errors: string[] = [];
+    client.onError(({ error }) => errors.push(error.message));
+
+    await client.sendMessage("Hi");
+    FakeEventSource.instances[0]?.emitError();
+    FakeEventSource.instances[0]?.emitError();
+
+    expect(errors).toEqual(["SSE connection error"]);
+  });
 });

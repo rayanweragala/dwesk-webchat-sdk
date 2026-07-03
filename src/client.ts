@@ -147,9 +147,6 @@ export class DweskWebChatClient {
     this.config.onDebugEvent?.({ type: "sse-open", timestamp: new Date().toISOString(), url });
     this.eventsErrorReported = false;
     const events = new EventSourceCtor(url);
-    events.addEventListener("open", () => {
-      this.eventsErrorReported = false;
-    });
     events.addEventListener("message", (event) => {
       const message = JSON.parse(event.data) as IncomingAgentMessage;
       this.config.onDebugEvent?.({ type: "sse-message", timestamp: new Date().toISOString(), url, body: message });

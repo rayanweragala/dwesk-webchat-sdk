@@ -47,15 +47,25 @@ function json(data: unknown, headers: HeadersInit, status = 200): Response {
 function stream(store: WebhookStore, sessionId: string, headers: HeadersInit): Response {
   const encoder = new TextEncoder();
   let unsubscribe = () => {};
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
 
   const body = new ReadableStream({
     start(controller) {
       controller.enqueue(encoder.encode(": connected\n\n"));
+      heartbeat = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(": heartbeat\n\n"));
+        } catch (_error) {
+          if (heartbeat) clearInterval(heartbeat);
+          unsubscribe();
+        }
+      }, 25000);
       unsubscribe = store.subscribe(sessionId, (message) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(message)}\n\n`));
       });
     },
     cancel() {
+      if (heartbeat) clearInterval(heartbeat);
       unsubscribe();
     }
   });

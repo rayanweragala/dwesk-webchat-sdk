@@ -22,6 +22,7 @@ describe("WebhookStore", () => {
     store.receive({ sessionId: "s1", message: "After close" });
 
     expect(messages).toEqual(["Live reply"]);
+    expect(store.drainUnread("s1").map((message) => message.message)).toEqual(["After close"]);
   });
 
   test("rejects payload without session", () => {

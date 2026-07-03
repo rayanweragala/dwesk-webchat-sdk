@@ -57,7 +57,11 @@ export class WebhookStore {
     const sessionMessages = this.messages.get(payload.sessionId) ?? [];
     sessionMessages.push(message);
     this.messages.set(payload.sessionId, sessionMessages.slice(-this.maxMessagesPerSession));
-    this.subscribers.get(payload.sessionId)?.forEach((send) => send(message));
+    const subscribers = this.subscribers.get(payload.sessionId);
+    if (subscribers?.size) {
+      message.read = true;
+      subscribers.forEach((send) => send(message));
+    }
     return message;
   }
 
