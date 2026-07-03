@@ -9,13 +9,13 @@ Bun-first TypeScript SDK for sending customer web chat messages to `dwesk-backen
 **macOS / Linux / WSL:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rayanweragala/dwesk-webchat-sdk/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rayanweragala/dwesk-webchat-sdk/master/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/rayanweragala/dwesk-webchat-sdk/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/rayanweragala/dwesk-webchat-sdk/master/install.ps1 | iex
 ```
 
 The installer will ask for:
