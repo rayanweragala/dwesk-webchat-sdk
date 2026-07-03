@@ -243,6 +243,13 @@ async function startTunnel(): Promise<string> {
   const rawToken = process.env.NGROK_AUTHTOKEN;
   const authtoken = typeof rawToken === "string" ? rawToken.trim() : "";
 
+  // Always kill and disconnect any stale tunnels first
+  try {
+    await ngrok.disconnect();
+    await ngrok.kill();
+    await delay(300);
+  } catch (e) {}
+
   const existingUrl = await findExistingTunnelUrl();
   if (existingUrl) {
     return existingUrl;
