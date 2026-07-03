@@ -379,6 +379,8 @@ async function tunnelFetch(request: Request): Promise<Response | null> {
       const headers = new Headers(request.headers);
       headers.delete("host");
       headers.delete("x-target-url");
+      headers.delete("origin");
+      headers.delete("referer");
       // Prevent Squid proxy from intercepting proxy requests to the target CRM
       delete process.env.HTTP_PROXY;
       delete process.env.http_proxy;
