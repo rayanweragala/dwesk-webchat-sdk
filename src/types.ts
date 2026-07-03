@@ -72,6 +72,7 @@ export interface IncomingAgentMessage {
   timestamp: string;
   read: boolean;
   receivedAt: number;
+  eventType?: "message" | "resolved" | "reopened";
   attachment?: IncomingAttachment;
 }
 

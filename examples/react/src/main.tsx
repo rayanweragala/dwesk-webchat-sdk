@@ -266,6 +266,7 @@ function App() {
   const [showConfig, setShowConfig] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [chatResolved, setChatResolved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const chatRef = useRef<DweskWebChatClient | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -278,6 +279,15 @@ function App() {
     );
     client.onReply((reply: IncomingAgentMessage) => {
       setConnected(true);
+      if (reply.eventType === "resolved" || reply.eventType === "reopened") {
+        setChatResolved(reply.eventType === "resolved");
+        setMessages(prev => [...prev, {
+          id: reply.id, from: "system",
+          text: reply.message,
+          time: new Date(reply.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        }]);
+        return;
+      }
       const next: UiMessage = {
         id: reply.id, from: "agent",
         text: reply.message || "Attachment received",
@@ -303,14 +313,14 @@ function App() {
 
   async function sendMessage() {
     const msg = text.trim();
-    if (!msg || busy || !chatRef.current) return;
+    if (!msg || busy || chatResolved || !chatRef.current) return;
     setText(""); setBusy(true);
     setMessages(prev => [...prev, { id: crypto.randomUUID(), from: "customer", text: msg, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
     try { await chatRef.current.sendMessage(msg); } finally { setBusy(false); }
   }
 
   async function sendFile(file: File | undefined) {
-    if (!file || busy || !chatRef.current) return;
+    if (!file || busy || chatResolved || !chatRef.current) return;
     setBusy(true);
     setMessages(prev => [...prev, { id: crypto.randomUUID(), from: "customer", text: "File sent", fileName: file.name, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
     try { await chatRef.current.sendFile({ file, fileName: file.name, fileType: file.type }); }
@@ -490,7 +500,7 @@ function App() {
         <div className="composer-wrap">
           <input ref={fileRef} type="file" hidden onChange={e => void sendFile(e.target.files?.[0])} />
           <div className="composer-box">
-            <button className="composer-attach" onClick={() => fileRef.current?.click()} disabled={busy} title="Attach file">
+            <button className="composer-attach" onClick={() => fileRef.current?.click()} disabled={busy || chatResolved} title="Attach file">
               <Paperclip size={18} />
             </button>
             <textarea
@@ -499,14 +509,14 @@ function App() {
               value={text}
               onChange={e => setText(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }}
-              placeholder="Type a message… (Enter to send)"
-              disabled={busy}
+              placeholder={chatResolved ? "Chat resolved" : "Type a message… (Enter to send)"}
+              disabled={busy || chatResolved}
             />
-            <button className="composer-send" onClick={() => void sendMessage()} disabled={busy || !text.trim()} aria-label="Send">
+            <button className="composer-send" onClick={() => void sendMessage()} disabled={busy || chatResolved || !text.trim()} aria-label="Send">
               {busy ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
             </button>
           </div>
-          <div className="composer-hint">Press Enter to send · Shift+Enter for new line</div>
+          <div className="composer-hint">{chatResolved ? "Chat resolved by agent" : "Press Enter to send · Shift+Enter for new line"}</div>
         </div>
       </main>
 

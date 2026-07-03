@@ -25,6 +25,16 @@ describe("WebhookStore", () => {
     expect(store.drainUnread("s1").map((message) => message.message)).toEqual(["After close"]);
   });
 
+  test("accepts resolved and reopened events", () => {
+    const store = new WebhookStore({ id: () => "m1", now: () => 100 });
+
+    const resolved = store.receive({ sessionId: "s1", eventType: "resolved" });
+    const reopened = store.receive({ sessionId: "s1", eventType: "reopened" });
+
+    expect(resolved).toMatchObject({ eventType: "resolved", message: "Chat marked as resolved" });
+    expect(reopened).toMatchObject({ eventType: "reopened", message: "Chat reopened" });
+  });
+
   test("rejects payload without session", () => {
     const store = new WebhookStore();
     expect(() => store.receive({ message: "Hello" })).toThrow("Missing required field: sessionId");

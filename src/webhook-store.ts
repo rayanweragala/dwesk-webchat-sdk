@@ -12,6 +12,7 @@ export interface AgentWebhookPayload {
   message?: string;
   agentName?: string;
   timestamp?: string;
+  eventType?: "message" | "resolved" | "reopened";
   attachmentBase64?: string;
   attachmentName?: string;
   attachmentType?: string;
@@ -34,16 +35,17 @@ export class WebhookStore {
 
   receive(payload: AgentWebhookPayload): IncomingAgentMessage {
     if (!payload.sessionId) throw new Error("Missing required field: sessionId");
-    if (!payload.message && !payload.attachmentBase64) throw new Error("Missing message content");
+    if (!payload.message && !payload.attachmentBase64 && !payload.eventType) throw new Error("Missing message content");
 
     const message: IncomingAgentMessage = {
       id: this.id(),
       sessionId: payload.sessionId,
-      message: payload.message ?? "",
-      agentName: payload.agentName ?? "Agent",
+      message: payload.message ?? defaultEventMessage(payload.eventType),
+      agentName: payload.agentName ?? (payload.eventType ? "System" : "Agent"),
       timestamp: payload.timestamp ?? new Date(this.now()).toISOString(),
       read: false,
-      receivedAt: this.now()
+      receivedAt: this.now(),
+      eventType: payload.eventType ?? "message"
     };
 
     if (payload.attachmentBase64) {
@@ -116,4 +118,10 @@ export class WebhookStore {
       else this.messages.delete(sessionId);
     }
   }
+}
+
+function defaultEventMessage(eventType?: AgentWebhookPayload["eventType"]): string {
+  if (eventType === "resolved") return "Chat marked as resolved";
+  if (eventType === "reopened") return "Chat reopened";
+  return "";
 }
