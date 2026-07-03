@@ -138,11 +138,11 @@ function ConfigModal({
 
           {/* Tunnel */}
           <div className="cfg-block">
-            <div className="cfg-block-label">Tunnel</div>
+            <div className="cfg-block-label">Tunnel & Webhook</div>
             <div className="tunnel-bar">
               <div className="tunnel-indicator">
                 <span className={`tun-dot ${tunnel.active ? "on" : ""}`} />
-                <span className="tun-label">{tunnel.active ? "Active" : "Inactive"}</span>
+                <span className="tun-label">{tunnel.active ? "Tunnel Active" : "Tunnel Inactive"}</span>
               </div>
               <button
                 className={`tun-btn ${tunnel.active ? "tun-stop" : "tun-start"}`}
@@ -153,13 +153,42 @@ function ConfigModal({
               </button>
             </div>
             {tunnel.error && <div className="tun-err">{tunnel.error}</div>}
+            
             {tunnel.active && tunnel.url && (
-              <div className="tun-url-box">
-                <code className="tun-url-text">{tunnel.url}</code>
-                <button className={`tun-copy ${copied ? "ok" : ""}`} onClick={copy}>
-                  {copied ? <Check size={13} /> : <Copy size={13} />}
-                  {copied ? "Copied" : "Copy"}
-                </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                <div className="inp-wrap">
+                  <span className="inp-label">Public Tunnel URL</span>
+                  <div className="tun-url-box">
+                    <code className="tun-url-text">{tunnel.url}</code>
+                    <button className={`tun-copy ${copied ? "ok" : ""}`} onClick={copy}>
+                      {copied ? <Check size={13} /> : <Copy size={13} />}
+                      {copied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="inp-wrap">
+                  <span className="inp-label">Dwesk Webhook URL (Copy this to external Dwesk app)</span>
+                  <div className="tun-url-box">
+                    <code className="tun-url-text">{`${tunnel.url.replace(/\/+$/, "")}/api/webhook/chat`}</code>
+                    <button 
+                      className="tun-copy" 
+                      onClick={() => {
+                        const webhookUrl = `${tunnel.url!.replace(/\/+$/, "")}/api/webhook/chat`;
+                        navigator.clipboard.writeText(webhookUrl);
+                        // Briefly change icon to check
+                        const btn = document.getElementById('webhook-copy-btn');
+                        if (btn) {
+                          btn.innerText = 'Copied';
+                          setTimeout(() => { btn.innerText = 'Copy'; }, 2000);
+                        }
+                      }}
+                    >
+                      <Copy size={13} />
+                      <span id="webhook-copy-btn">Copy</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
