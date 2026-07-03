@@ -1,5 +1,4 @@
 import * as ngrok from "ngrok";
-import downloadNgrok from "ngrok/download";
 import fs from "node:fs";
 import { createWebhookServer } from "../../src/webhook";
 
@@ -7,7 +6,6 @@ const DEMO_ENV_PATH = new URL("../react/.env", import.meta.url);
 const port = Number(Bun.env.PORT ?? 3000);
 const server = createWebhookServer({ corsOrigin: Bun.env.CORS_ORIGIN ?? "*" });
 let tunnelUrl: string | null = null;
-let binaryReady = false;
 const tunnelHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "content-type",
@@ -62,32 +60,6 @@ function friendlyTunnelError(error: unknown): string {
     return "NGROK_AUTHTOKEN not found. Add it to examples/react/.env.";
   }
   return message;
-}
-
-function ngrokArch(): string {
-  const platform = process.platform === "win32" ? "win32" : process.platform;
-  const arch = process.arch === "x64" ? "x64" : process.arch;
-  return `${platform}${arch}`;
-}
-
-function repairNgrokBinary(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    downloadNgrok((error) => {
-      if (error) reject(error);
-      else resolve();
-    }, { arch: ngrokArch(), ignoreCache: true });
-  });
-}
-
-async function ensureNgrokBinary(): Promise<void> {
-  if (binaryReady) return;
-  try {
-    await ngrok.getVersion();
-  } catch {
-    await repairNgrokBinary();
-    await ngrok.getVersion();
-  }
-  binaryReady = true;
 }
 
 /* ─── Robust Ngrok Tunnel Helpers ────────────────────────────────────────── */
@@ -270,7 +242,6 @@ async function clearConflictingTunnel(error: unknown): Promise<boolean> {
 async function startTunnel(): Promise<string> {
   const rawToken = process.env.NGROK_AUTHTOKEN;
   const authtoken = typeof rawToken === "string" ? rawToken.trim() : "";
-  await ensureNgrokBinary();
 
   const existingUrl = await findExistingTunnelUrl();
   if (existingUrl) {
