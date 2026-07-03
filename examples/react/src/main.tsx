@@ -40,6 +40,8 @@ type DemoConfig = {
   customerPhone: string;
 };
 
+type SavedDemoConfig = DemoConfig & { envKey?: string };
+
 type UiMessage = {
   id: string;
   from: "customer" | "agent" | "system";
@@ -68,16 +70,25 @@ const defaults: DemoConfig = {
   customerPhone: import.meta.env.VITE_DWESK_CUSTOMER_PHONE ?? "0770000000",
 };
 
+const envKey = JSON.stringify(defaults);
+
 function loadConfig(): DemoConfig {
   const saved = localStorage.getItem("dwesk.webchat.demo.config");
-  return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+  if (!saved) return defaults;
+
+  const parsed = JSON.parse(saved) as SavedDemoConfig;
+  return parsed.envKey === envKey ? { ...defaults, ...parsed } : defaults;
+}
+
+function saveDemoConfig(config: DemoConfig) {
+  localStorage.setItem("dwesk.webchat.demo.config", JSON.stringify({ ...config, envKey }));
 }
 
 function toClientConfig(config: DemoConfig, onDebugEvent: (e: WebChatDebugEvent) => void): DweskWebChatConfig {
   const webhookUrl = replyWebhookUrl(config);
 
   // Custom proxy fetcher to automatically bypass CORS during local QA testing
-  const customFetch = async (url: string, init?: RequestInit) => {
+  const customFetch = (async (url: string, init?: RequestInit) => {
     if (url.includes("/api/external/webchat")) {
       const bridgeBase = config.webhookUrl.trim().replace(/\/+$/, "").replace(/\/api\/webhook\/chat$/, "");
       const proxyUrl = `${bridgeBase}/api/proxy`;
@@ -89,7 +100,7 @@ function toClientConfig(config: DemoConfig, onDebugEvent: (e: WebChatDebugEvent)
       });
     }
     return fetch(url, init);
-  };
+  }) as typeof fetch;
 
   const cfg: DweskWebChatConfig = {
     crmUrl: config.crmUrl,
@@ -269,12 +280,13 @@ function App() {
     );
     client.onReply((reply: IncomingAgentMessage) => {
       setConnected(true);
-      setMessages(prev => [...prev, {
+      const next: UiMessage = {
         id: reply.id, from: "agent",
         text: reply.message || "Attachment received",
         time: new Date(reply.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        fileName: reply.attachment?.name,
-      }]);
+        ...(reply.attachment?.name ? { fileName: reply.attachment.name } : {}),
+      };
+      setMessages(prev => [...prev, next]);
     });
     client.onError(({ error }) => {
       setMessages(prev => [...prev, { id: crypto.randomUUID(), from: "system", text: error.message, time: "now" }]);
@@ -288,7 +300,7 @@ function App() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const updateConfig = (k: keyof DemoConfig, v: string) => { setConfig(c => ({ ...c, [k]: v })); setSaved(false); };
-  const saveConfig = () => { localStorage.setItem("dwesk.webchat.demo.config", JSON.stringify(config)); setSaved(true); };
+  const saveConfig = () => { saveDemoConfig(config); setSaved(true); };
 
   async function sendMessage() {
     const msg = text.trim();
@@ -320,7 +332,7 @@ function App() {
       const r = await fetch(tunnelApiUrl(config, tunnel.active ? "/api/tunnel/stop" : "/api/tunnel/start"), { method: "POST" });
       const next = await r.json() as TunnelState;
       setTunnel(next);
-      if (next.url) { updateConfig("publicForwardBaseUrl", next.url); const u = { ...config, publicForwardBaseUrl: next.url }; localStorage.setItem("dwesk.webchat.demo.config", JSON.stringify(u)); setSaved(true); }
+      if (next.url) { updateConfig("publicForwardBaseUrl", next.url); saveDemoConfig({ ...config, publicForwardBaseUrl: next.url }); setSaved(true); }
     } finally { setTunnelBusy(false); }
   }
 
@@ -537,7 +549,7 @@ function DebugDrawer({
       const q = search.toLowerCase();
       return (
         log.type.toLowerCase().includes(q) ||
-        (log.message && log.message.toLowerCase().includes(q)) ||
+        ("message" in log && log.message.toLowerCase().includes(q)) ||
         JSON.stringify(log).toLowerCase().includes(q)
       );
     }
@@ -643,7 +655,7 @@ function LogCard({ log, forceOpen }: { log: LogEntry; forceOpen: boolean }) {
         <div className="log-card-hd-left">
           <span className={`log-dot ${typeClass}`} />
           <span className="log-type">{log.type}</span>
-          {log.context && <span className="log-context">{log.context}</span>}
+          {"context" in log && <span className="log-context">{log.context}</span>}
         </div>
         <div className="log-card-hd-right">
           <time className="log-time">

@@ -233,6 +233,23 @@ function extractNgrokErrorMessage(error: unknown): string {
   return "unknown ngrok error";
 }
 
+function localIpv4Url(rawUrl: string): string | null {
+  const url = new URL(rawUrl);
+  if (url.hostname !== "localhost") return null;
+  url.hostname = "127.0.0.1";
+  return url.toString();
+}
+
+async function proxyPost(targetUrl: string, headers: Headers, body: string): Promise<Response> {
+  try {
+    return await fetch(targetUrl, { method: "POST", headers, body });
+  } catch (error) {
+    const fallbackUrl = localIpv4Url(targetUrl);
+    if (!fallbackUrl) throw error;
+    return fetch(fallbackUrl, { method: "POST", headers, body });
+  }
+}
+
 async function tryStartTunnel(authtoken: string): Promise<string> {
   return ngrok.connect({
     addr: port,
@@ -402,16 +419,14 @@ async function tunnelFetch(request: Request): Promise<Response | null> {
       headers.delete("x-target-url");
       headers.delete("origin");
       headers.delete("referer");
-      // Prevent Squid proxy from intercepting proxy requests to the target CRM
-      delete process.env.HTTP_PROXY;
-      delete process.env.http_proxy;
-
       const bodyText = await request.text();
-      const response = await fetch(targetUrl, {
-        method: "POST",
-        headers,
-        body: bodyText
-      });
+      disableProxy();
+      let response: Response;
+      try {
+        response = await proxyPost(targetUrl, headers, bodyText);
+      } finally {
+        enableProxy();
+      }
       const responseBody = await response.text();
 
       return new Response(responseBody, {
