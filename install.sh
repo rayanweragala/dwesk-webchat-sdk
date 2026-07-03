@@ -63,7 +63,7 @@ install_repo() {
 write_env() {
   say ""
   say "Connection settings"
-  local api_url company_id username password customer_name customer_email customer_phone
+  local api_url company_id username password customer_name customer_email customer_phone ngrok_authtoken
   api_url="$(ask        "External API URL"  "http://localhost:8080")"
   company_id="$(ask     "Company ID"        "1")"
   username="$(ask       "Username"          "")"
@@ -71,6 +71,7 @@ write_env() {
   customer_name="$(ask  "Customer name"     "Demo Customer")"
   customer_email="$(ask "Customer email"    "demo@example.com")"
   customer_phone="$(ask "Customer phone"    "0770000000")"
+  ngrok_authtoken="$(ask "ngrok authtoken (optional)" "")"
 
   cat > "$INSTALL_DIR/examples/react/.env" <<EOF
 VITE_DWESK_CRM_URL=$api_url
@@ -82,6 +83,7 @@ VITE_DWESK_PUBLIC_FORWARD_URL=
 VITE_DWESK_CUSTOMER_NAME=$customer_name
 VITE_DWESK_CUSTOMER_EMAIL=$customer_email
 VITE_DWESK_CUSTOMER_PHONE=$customer_phone
+NGROK_AUTHTOKEN=$ngrok_authtoken
 EOF
 }
 

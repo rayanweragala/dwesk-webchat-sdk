@@ -58,6 +58,7 @@ function Write-Env {
   $custName     = Ask 'Customer name'     'Demo Customer'
   $custEmail    = Ask 'Customer email'    'demo@example.com'
   $custPhone    = Ask 'Customer phone'    '0770000000'
+  $ngrokToken   = Ask 'ngrok authtoken (optional)' ''
 
   $env = @"
 VITE_DWESK_CRM_URL=$apiUrl
@@ -69,6 +70,7 @@ VITE_DWESK_PUBLIC_FORWARD_URL=
 VITE_DWESK_CUSTOMER_NAME=$custName
 VITE_DWESK_CUSTOMER_EMAIL=$custEmail
 VITE_DWESK_CUSTOMER_PHONE=$custPhone
+NGROK_AUTHTOKEN=$ngrokToken
 "@
   Set-Content -Path "$InstallDir\examples\react\.env" -Value $env -Encoding UTF8
 }

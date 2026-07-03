@@ -150,3 +150,16 @@ Bun.serve({
 });
 
 console.log(`Dwesk webhook bridge listening on http://localhost:${port}`);
+
+// Auto-start tunnel if NGROK_AUTHTOKEN is provided in the env
+if (process.env.NGROK_AUTHTOKEN?.trim()) {
+  (async () => {
+    try {
+      tunnelUrl = await startTunnel();
+      console.log(`[Tunnel] Auto-started tunnel at: ${tunnelUrl}`);
+    } catch (err) {
+      console.error(`[Tunnel] Auto-start failed: ${friendlyTunnelError(err)}`);
+    }
+  })();
+}
+
