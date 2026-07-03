@@ -1,16 +1,30 @@
-// Strip proxy environment variables to prevent local API requests from being routed through Squid
-delete process.env.HTTP_PROXY;
-delete process.env.http_proxy;
-delete process.env.HTTPS_PROXY;
-delete process.env.https_proxy;
-delete process.env.ALL_PROXY;
-delete process.env.all_proxy;
-process.env.NO_PROXY = "127.0.0.1,localhost";
-process.env.no_proxy = "127.0.0.1,localhost";
-
 import fs from "node:fs";
 import { exec } from "node:child_process";
 import { createWebhookServer } from "../../src/webhook";
+
+const proxyEnvVars = ["HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"];
+const savedProxyValues: Record<string, string | undefined> = {};
+
+// Save initial proxies on startup
+for (const key of proxyEnvVars) {
+  savedProxyValues[key] = process.env[key];
+}
+
+function disableProxy() {
+  for (const key of proxyEnvVars) {
+    delete process.env[key];
+  }
+  process.env.NO_PROXY = "127.0.0.1,localhost";
+  process.env.no_proxy = "127.0.0.1,localhost";
+}
+
+function enableProxy() {
+  for (const key of proxyEnvVars) {
+    if (savedProxyValues[key] !== undefined) {
+      process.env[key] = savedProxyValues[key];
+    }
+  }
+}
 
 // Force kill any stale ngrok processes running on the machine to avoid EADDRINUSE / already exists conflicts
 try {
@@ -265,56 +279,62 @@ async function startTunnel(): Promise<string> {
   const rawToken = process.env.NGROK_AUTHTOKEN;
   const authtoken = typeof rawToken === "string" ? rawToken.trim() : "";
 
-  // Always kill and disconnect any stale tunnels first
+  disableProxy();
   try {
-    await ngrok.disconnect();
-    await ngrok.kill();
-    await delay(300);
-  } catch (e) {}
-
-  const existingUrl = await findExistingTunnelUrl();
-  if (existingUrl) {
-    return existingUrl;
-  }
-
-  let startError: unknown = null;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      return await tryStartTunnel(authtoken);
-    } catch (error) {
-      startError = error;
-      const recoveredUrl = await recoverExistingTunnelUrl(error);
-      if (recoveredUrl) return recoveredUrl;
-
-      const cleared = await clearConflictingTunnel(error);
-      if (!cleared) break;
-    }
-  }
-
-  let finalError: unknown = startError;
-  for (let restartAttempt = 0; restartAttempt < 3; restartAttempt += 1) {
+    // Always kill and disconnect any stale tunnels first
     try {
       await ngrok.disconnect();
-    } catch (_disconnectError) {}
-
-    try {
       await ngrok.kill();
-      await delay(200 * (restartAttempt + 1));
-      return await tryStartTunnel(authtoken);
-    } catch (restartError) {
-      finalError = restartError;
-      const recoveredAfterRestart = await recoverExistingTunnelUrl(restartError);
-      if (recoveredAfterRestart) return recoveredAfterRestart;
+      await delay(300);
+    } catch (e) {}
 
-      if (!extractExistingTunnelName(restartError)) break;
+    const existingUrl = await findExistingTunnelUrl();
+    if (existingUrl) {
+      return existingUrl;
     }
-  }
 
-  throw finalError ?? new Error("Failed to start ngrok tunnel");
+    let startError: unknown = null;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await tryStartTunnel(authtoken);
+      } catch (error) {
+        startError = error;
+        const recoveredUrl = await recoverExistingTunnelUrl(error);
+        if (recoveredUrl) return recoveredUrl;
+
+        const cleared = await clearConflictingTunnel(error);
+        if (!cleared) break;
+      }
+    }
+
+    let finalError: unknown = startError;
+    for (let restartAttempt = 0; restartAttempt < 3; restartAttempt += 1) {
+      try {
+        await ngrok.disconnect();
+      } catch (_disconnectError) {}
+
+      try {
+        await ngrok.kill();
+        await delay(200 * (restartAttempt + 1));
+        return await tryStartTunnel(authtoken);
+      } catch (restartError) {
+        finalError = restartError;
+        const recoveredAfterRestart = await recoverExistingTunnelUrl(restartError);
+        if (recoveredAfterRestart) return recoveredAfterRestart;
+
+        if (!extractExistingTunnelName(restartError)) break;
+      }
+    }
+
+    throw finalError ?? new Error("Failed to start ngrok tunnel");
+  } finally {
+    enableProxy();
+  }
 }
 
 async function stopTunnel(): Promise<void> {
+  disableProxy();
   try {
     if (tunnelUrl) {
       await ngrok.disconnect(tunnelUrl);
@@ -324,6 +344,7 @@ async function stopTunnel(): Promise<void> {
     await ngrok.kill();
   } finally {
     tunnelUrl = null;
+    enableProxy();
   }
 }
 
