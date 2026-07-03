@@ -6,10 +6,30 @@ INSTALL_DIR="${DWESK_WEBCHAT_INSTALL_DIR:-$HOME/.dwesk-webchat-demo}"
 BIN_DIR="${DWESK_WEBCHAT_BIN_DIR:-$HOME/.local/bin}"
 
 say()  { printf '%s\n' "$*"; }
-ask()  { local p="$1" d="${2:-}" v; if [ -n "$d" ]; then read -r -p "$p [$d]: " v; printf '%s' "${v:-$d}"; else read -r -p "$p: " v; printf '%s' "$v"; fi; }
-ask_secret() { local p="$1" v; read -r -s -p "$p: " v; printf '\n' >&2; printf '%s' "$v"; }
-confirm()    { local p="$1" a; read -r -p "$p [y/N]: " a; case "$a" in y|Y|yes|YES) return 0;; *) return 1;; esac; }
-need()       { command -v "$1" >/dev/null 2>&1; }
+
+# Always read from /dev/tty so prompts work even when piped through: curl | bash
+ask() {
+  local p="$1" d="${2:-}" v
+  if [ -n "$d" ]; then
+    read -r -p "$p [$d]: " v </dev/tty
+    printf '%s' "${v:-$d}"
+  else
+    read -r -p "$p: " v </dev/tty
+    printf '%s' "$v"
+  fi
+}
+ask_secret() {
+  local p="$1" v
+  read -r -s -p "$p: " v </dev/tty
+  printf '\n' >&2
+  printf '%s' "$v"
+}
+confirm() {
+  local p="$1" a
+  read -r -p "$p [y/N]: " a </dev/tty
+  case "$a" in y|Y|yes|YES) return 0;; *) return 1;; esac
+}
+need() { command -v "$1" >/dev/null 2>&1; }
 
 install_bun() {
   need bun && return 0
@@ -109,8 +129,18 @@ main() {
   install_deps
   write_launcher
   say ""
-  say "Done. Run:  dwesk-webchat"
-  say "Open:      http://127.0.0.1:5173"
+  say "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  say " Installation complete!"
+  say ""
+  say " Start the app now:"
+  say "   source ~/.bashrc 2>/dev/null || source ~/.zshrc 2>/dev/null || true"
+  say "   dwesk-webchat"
+  say ""
+  say " Or run directly:"
+  say "   $BIN_DIR/dwesk-webchat"
+  say ""
+  say " Then open:  http://localhost:5173"
+  say "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 
 main "$@"
