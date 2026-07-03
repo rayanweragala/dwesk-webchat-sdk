@@ -22,7 +22,7 @@ export class DweskWebChatClient {
 
   constructor(config: DweskWebChatConfig) {
     this.config = config;
-    this.fetcher = config.fetch ?? fetch;
+    this.fetcher = config.fetch ?? (globalThis.fetch ? globalThis.fetch.bind(globalThis) : fetch);
   }
 
   getSessionId(): string | null {
