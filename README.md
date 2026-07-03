@@ -1,30 +1,63 @@
 # Dwesk WebChat SDK
 
-Bun-first TypeScript SDK for sending customer web chat messages to `dwesk-backend`.
+Bun-first TypeScript SDK for sending customer web chat messages to `dwesk-backend` and streaming agent replies back to the browser over SSE.
 
-## Install
+---
 
-```bash
-bun install dwesk-webchat-sdk
-```
+## Quick install (testers)
 
-## Demo installer
-
-Linux, macOS, Windows Git Bash, or WSL:
+**macOS / Linux / WSL:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rayanweragala/dwesk-webchat-sdk/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rayanweragala/dwesk-webchat-sdk/main/install.sh | bash
 ```
 
-Installer asks for Dwesk API URL, company ID, auth credentials, local bridge URL, optional public forward URL, and demo customer details. It installs only the local webhook bridge and React QA demo.
+**Windows (PowerShell):**
 
-After install:
+```powershell
+irm https://raw.githubusercontent.com/rayanweragala/dwesk-webchat-sdk/main/install.ps1 | iex
+```
+
+The installer will ask for:
+- External API URL
+- Company ID
+- Username & password
+- Customer name, email, phone
+
+That's it. No ngrok tokens, no bridge URLs — the UI handles the rest.
+
+After install, run:
 
 ```bash
-dwesk-webchat-demo
+# macOS / Linux
+dwesk-webchat
+
+# Windows — double-click the Desktop shortcut, or run:
+dwesk-webchat.bat
 ```
 
-## Send a message
+Then open **http://localhost:5173**.
+
+---
+
+## Demo UI
+
+The React demo is a full-page dark-theme chat testing interface:
+
+- **Sidebar** — customer profile, live session status, message stats
+- **Chat area** — full-height message thread with send/receive bubbles
+- **⚙ Configuration modal** — API URL, company ID, credentials, tunnel toggle, customer details
+- **⚡ Debug panel** — live SDK events, slide-in from the right, expandable per entry
+
+The tunnel (Start / Stop) is inside the configuration modal. When active, the ready-to-use webhook URL appears with a one-click copy button. Nothing ngrok-specific is shown to testers.
+
+---
+
+## SDK usage
+
+```bash
+bun add dwesk-webchat-sdk
+```
 
 ```ts
 import { DweskWebChatClient } from "dwesk-webchat-sdk";
@@ -44,20 +77,44 @@ const chat = new DweskWebChatClient({
 
 await chat.sendMessage("Need help with my order");
 
-chat.onReply((message) => {
-  console.log(message.agentName, message.message);
+chat.onReply((msg) => {
+  console.log(msg.agentName, msg.message);
 });
 ```
+
+---
+
+## Webhook bridge
+
+Agent replies from `dwesk-backend` are pushed to the company `webChatWebhookUrl`. The local bridge (`examples/server/server.ts`) receives them and streams them to the browser over SSE.
+
+Run the bridge manually:
+
+```bash
+bun examples/server/server.ts
+```
+
+Routes:
+
+```
+POST /api/webhook/chat
+GET  /api/webhook/chat/events/:sessionId
+GET  /api/tunnel/status
+POST /api/tunnel/start
+POST /api/tunnel/stop
+```
+
+---
 
 ## Backend contract
 
 SDK posts to:
 
-```text
+```
 POST /api/external/webchat/receive-message
 ```
 
-Payload fields match `ExternalMessageRequestDto` in `dwesk-backend`:
+Payload matches `ExternalMessageRequestDto`:
 
 ```ts
 {
@@ -77,39 +134,22 @@ Payload fields match `ExternalMessageRequestDto` in `dwesk-backend`:
 }
 ```
 
-## Webhook bridge
+---
 
-Dwesk agent replies are sent by backend to company `webChatWebhookUrl`. Browser receives replies through server-sent events.
-
-If Dwesk backend is not on the same machine, click `Start Tunnel` in the demo. It uses the bundled npm `ngrok` package to open local port `3000`, fills the public URL, and shows the exact `Dwesk company webhook` URL to copy into Dwesk company settings. No global ngrok install is required. Token source is `NGROK_AUTHTOKEN` from the demo `.env`.
-
-Run local bridge:
+## Run the React example manually
 
 ```bash
+# Terminal 1 — bridge
 bun examples/server/server.ts
-```
 
-Routes:
-
-```text
-POST /api/webhook/chat
-GET  /api/webhook/chat/events/:sessionId
-```
-
-## React example
-
-```bash
+# Terminal 2 — UI
 cd examples/react
+cp .env.example .env   # fill in your values
 bun install
-cp .env.example .env
 bun run dev
 ```
 
-Run bridge in another terminal:
-
-```bash
-bun ../../examples/server/server.ts
-```
+---
 
 ## Development
 
