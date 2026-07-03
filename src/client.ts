@@ -17,6 +17,7 @@ export class DweskWebChatClient {
   private replyHandlers = new Set<ReplyHandler>();
   private errorHandlers = new Set<ErrorHandler>();
   private events: EventSource | undefined;
+  private eventsErrorReported = false;
   private sessionId: string | null = null;
   private queueId: number | null = null;
 
@@ -144,13 +145,19 @@ export class DweskWebChatClient {
 
     const url = endpoint(this.config.webhookUrl, `/events/${this.sessionId}`);
     this.config.onDebugEvent?.({ type: "sse-open", timestamp: new Date().toISOString(), url });
+    this.eventsErrorReported = false;
     const events = new EventSourceCtor(url);
+    events.addEventListener("open", () => {
+      this.eventsErrorReported = false;
+    });
     events.addEventListener("message", (event) => {
       const message = JSON.parse(event.data) as IncomingAgentMessage;
       this.config.onDebugEvent?.({ type: "sse-message", timestamp: new Date().toISOString(), url, body: message });
       this.replyHandlers.forEach((handler) => handler(message));
     });
     events.addEventListener("error", () => {
+      if (this.eventsErrorReported) return;
+      this.eventsErrorReported = true;
       this.emitError("events", new Error("SSE connection error"));
     });
     this.events = events;
