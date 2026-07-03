@@ -132,15 +132,17 @@ main() {
   say "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   say " Installation complete!"
   say ""
-  say " Start the app now:"
-  say "   source ~/.bashrc 2>/dev/null || source ~/.zshrc 2>/dev/null || true"
+  say " To run it later again:"
   say "   dwesk-webchat"
+  say "   (or directly: $BIN_DIR/dwesk-webchat)"
   say ""
-  say " Or run directly:"
-  say "   $BIN_DIR/dwesk-webchat"
-  say ""
-  say " Then open:  http://localhost:5173"
+  say " Starting the application now..."
+  say " Open your browser to: http://localhost:5173"
   say "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  say ""
+  
+  # Execute launcher to run it immediately
+  exec "$BIN_DIR/dwesk-webchat"
 }
 
 main "$@"

@@ -111,5 +111,18 @@ Write-Env
 Install-Deps
 Write-Launcher
 Say ''
-Say 'Done. Run:  dwesk-webchat.bat'
-Say 'Open:      http://127.0.0.1:5173'
+Say '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+Say ' Installation complete!'
+Say ''
+Say ' To run it later again:'
+Say '   Double-click the "Dwesk WebChat" shortcut on your Desktop'
+Say '   or run: dwesk-webchat.bat'
+Say ''
+Say ' Starting the application now...'
+Say ' Open your browser to: http://localhost:5173'
+Say '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+Say ''
+
+# Run the batch file launcher immediately
+Start-Process "$InstallDir\dwesk-webchat.bat"
+
